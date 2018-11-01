@@ -4,11 +4,11 @@ from datetime import datetime
 from decimal import *
 from http import HTTPStatus
 from pytz import timezone
-from nano import convert
+from banano import convert
 from contextlib import closing
 from sys import getsizeof
 import telegram
-import MySQLdb, re, requests, base64, hashlib, hmac, json, logging, configparser, nano, tweepy, os, time, socket, pyqrcode
+import MySQLdb, re, requests, base64, hashlib, hmac, json, logging, configparser, banano, tweepy, os, time, socket, pyqrcode
 
 # Set Log File
 logging.basicConfig(handlers=[logging.FileHandler('/root/webhooks/webhooks.log', 'a', 'utf-8')],
@@ -38,7 +38,7 @@ DB_USER = config.get('webhooks', 'user')
 DB_PW = config.get('webhooks', 'password')
 DB_SCHEMA = config.get('webhooks', 'schema')
 
-# Nano Node connection settings
+# Banano Node connection settings
 WALLET = config.get('webhooks', 'wallet')
 NODE_IP = config.get('webhooks', 'node_ip')
 BOT_ID_TWITTER = config.get('webhooks', 'bot_id_twitter')
@@ -68,8 +68,8 @@ api = tweepy.API(auth)
 # Secondary API for non-tweepy supported requests
 twitterAPI = TwitterAPI(CONSUMER_KEY, CONSUMER_SECRET, ACCESS_TOKEN, ACCESS_TOKEN_SECRET)
 
-# Connect to Nano node
-rpc = nano.rpc.Client(NODE_IP)
+# Connect to Banano node
+rpc = banano.rpc.Client(NODE_IP)
 
 # Connect to Telegram
 telegram_bot = telegram.Bot(token=TELEGRAM_KEY)
@@ -211,15 +211,15 @@ def helpProcess(message):
     """
     Reply to the sender with help commands
     """
-    help_message = ("Thank you for using the Nano Tip Bot!  Below is a list of commands, and a description of what they do:\n\n" + BULLET +
+    help_message = ("Thank you for using the Banano Tip Bot!  Below is a list of commands, and a description of what they do:\n\n" + BULLET +
                     " !help: The tip bot will respond to your DM with a list of commands and their functions. If you forget something, use this to get a hint of how to do it!\n\n" + BULLET +
                     " !register: Registers your twitter ID for an account that is tied to it.  This is used to store your tips. Make sure to withdraw to a private wallet, as the tip bot is not meant to be a long term storage device for Nano.\n\n" + BULLET +
                     " !balance: This returns the balance of the account linked with your Twitter ID.\n\n" + BULLET +
-                    " !tip: Tips are sent through public tweets.  Tag @NanoTipBot in a tweet and mention !tip <amount> <@username>.  Example: @NanoTipBot !tip 1 @mitche50 would send a 1 Nano tip to user @mitche50.\n\n" + BULLET +
+                    " !tip: Tips are sent through public tweets.  Tag @NanoTipBot in a tweet and mention !tip <amount> <@username>.  Example: @BananoTipBot !tip 1 @mitche50 would send a 1 Banano tip to user @mitche50.\n\n" + BULLET +
                     " !privatetip: Currently disabled.  Will be enabled when live DM monitoring is possible through twitter.  This will send a tip to another user without posting a tweet.  If you would like your tip amount to be private, use this function!  Proper usage is !privatetip @username 1234\n\n" + BULLET +
-                    " !account: Returns the account number that is tied to your Twitter handle.  You can use this to deposit more Nano to tip from your personal wallet.\n\n" + BULLET +
-                    " !withdraw: Proper usage is !withdraw xrb_12345.  This will send the full balance of your tip account to the provided Nano account.  Optional: You can include an amount to withdraw by sending !withdraw <amount> <address>.  Example: !withdraw 1 xrb_iaoia83if221lodoepq would withdraw 1 NANO to account xrb_iaoia83if221lodoepq.\n\n" + BULLET +
-                    " !donate: Proper usage is !donate 1234.  This will send the requested donation to the Nano Tip Bot donation account to help fund development efforts.")
+                    " !account: Returns the account number that is tied to your Twitter handle.  You can use this to deposit more Banano to tip from your personal wallet.\n\n" + BULLET +
+                    " !withdraw: Proper usage is !withdraw ban_12345.  This will send the full balance of your tip account to the provided Banano account.  Optional: You can include an amount to withdraw by sending !withdraw <amount> <address>.  Example: !withdraw 1 ban_iaoia83if221lodoepq would withdraw 1 NANO to account ban_iaoia83if221lodoepq.\n\n" + BULLET +
+                    " !donate: Proper usage is !donate 1234.  This will send the requested donation to the Banano Tip Bot donation account to help fund development efforts.")
     sendDM(message['sender_id'], help_message, message['system'])
     logging.info("{}: Help message sent!".format(str(datetime.now())))
 
@@ -251,9 +251,9 @@ def balanceProcess(message):
         message['sender_balance_raw'] = balance_return['balance']
         message['sender_balance'] = balance_return['balance'] / 1000000000000000000000000000000
         if message['sender_balance'] == 0:
-            balance_text = "Your balance is 0 NANO."
+            balance_text = "Your balance is 0 Banano."
         else:
-            balance_text = "Your balance is {} NANO.".format(message['sender_balance'])
+            balance_text = "Your balance is {} Banano.".format(message['sender_balance'])
         sendDM(message['sender_id'], balance_text, message['system'])
         logging.info("{}: Balance Message Sent!".format(str(datetime.now())))
 
@@ -441,7 +441,7 @@ def withdrawProcess(message):
                 invalid_account_text = ("The account number you provided is invalid.  Please double check and "
                                         "resend your request.")
                 sendDM(message['sender_id'], invalid_account_text, message['system'])
-                logging.info("{}: The xrb account number is invalid: {}".format(str(datetime.now()), receiver_account))
+                logging.info("{}: The ban account number is invalid: {}".format(str(datetime.now()), receiver_account))
             elif balance_return['balance'] == 0:
                 no_balance_text = ("You have 0 balance in your account.  Please deposit to your address {} to "
                                    "send more tips!".format(sender_account))
@@ -460,7 +460,7 @@ def withdrawProcess(message):
                         return
                     withdraw_amount_raw = int(withdraw_amount * 1000000000000000000000000000000)
                     if Decimal(withdraw_amount_raw) > Decimal(balance_return['balance']):
-                        not_enough_balance_text = ("You do not have that much NANO in your account.  To withdraw your "
+                        not_enough_balance_text = ("You do not have that much Banano in your account.  To withdraw your "
                                                    "full amount, send !withdraw <account>")
                         sendDM(message['sender_id'], not_enough_balance_text, message['system'])
                         return
@@ -479,12 +479,12 @@ def withdrawProcess(message):
                                      destination="{}".format(receiver_account), amount=withdraw_amount_raw, work=work)
                 logging.info("{}: send_hash = {}".format(datetime.now(), send_hash))
                 # respond that the withdraw has been processed
-                withdraw_text = ("You have successfully withdrawn {} NANO!  You can check the "
-                                 "transaction at https://www.nanode.co/block/{}".format(withdraw_amount, send_hash))
+                withdraw_text = ("You have successfully withdrawn {} Banano!  You can check the "
+                                 "transaction at https://creeper.banano.cc/explorer/block/{}".format(withdraw_amount, send_hash))
                 sendDM(message['sender_id'], withdraw_text, message['system'])
                 logging.info("{}: Withdraw processed.  Hash: {}".format(str(datetime.now()), send_hash))
     else:
-        incorrect_withdraw_text = "I didn't understand your withdraw request.  Please resend with !withdraw <optional:amount> <account>.  Example, !withdraw 1 xrb_aigakjkfa343tm3h1kj would withdraw 1 NANO to account xrb_aigakjkfa343tm3h1kj.  Also, !withdraw xrb_aigakjkfa343tm3h1kj would withdraw your entire balance to account xrb_aigakjkfa343tm3h1kj."
+        incorrect_withdraw_text = "I didn't understand your withdraw request.  Please resend with !withdraw <optional:amount> <account>.  Example, !withdraw 1 ban_aigakjkfa343tm3h1kj would withdraw 1 BANANO to account ban_aigakjkfa343tm3h1kj.  Also, !withdraw ban_aigakjkfa343tm3h1kj would withdraw your entire balance to account ban_aigakjkfa343tm3h1kj."
         sendDM(message['sender_id'], incorrect_withdraw_text, message['system'])
         logging.info("{}: User sent a withdraw with invalid syntax.".format(str(datetime.now())))
 
@@ -510,7 +510,7 @@ def donateProcess(message):
         receiver_account = BOT_ACCOUNT
 
         try:
-            logging.info("{}: The user is donating {} NANO".format(str(datetime.now()), Decimal(send_amount)))
+            logging.info("{}: The user is donating {} BANANO".format(str(datetime.now()), Decimal(send_amount)))
         except Exception as e:
             logging.info("{}: ERROR IN CONVERTING DONATION AMOUNT: {}".format(datetime.now(), e))
             wrong_donate_text = "Only number amounts are accepted.  Please resend as !donate 1234"
@@ -518,7 +518,7 @@ def donateProcess(message):
             return ''
 
         if Decimal(balance) < Decimal(send_amount):
-            large_donate_text = ("Your balance is only {} NANO and you tried to send {}.  Please add more NANO"
+            large_donate_text = ("Your balance is only {} BANANO and you tried to send {}.  Please add more BANANO"
                                  " to your account, or lower your donation amount.".format(balance, Decimal(send_amount)))
             sendDM(message['sender_id'], large_donate_text, message['system'])
             logging.info("{}: User tried to donate more than their balance.".format(datetime.now()))
@@ -530,7 +530,7 @@ def donateProcess(message):
             logging.info("{}: User tried to donate less than 0.000001".format(datetime.now()))
 
         else:
-            send_amount_raw = convert(send_amount, from_unit='XRB', to_unit='raw')
+            send_amount_raw = convert(send_amount, from_unit='BAN', to_unit='raw')
             work = getPOW(sender_account)
             if work == '':
                 send_hash = rpc.send(wallet="{}".format(WALLET), source="{}".format(sender_account),
@@ -545,7 +545,7 @@ def donateProcess(message):
             donate_text = ("Thank you for your generosity!  You have successfully donated {} NANO!  You can check the "
                            "transaction at https://www.nanode.co/block/{}".format(send_amount, send_hash))
             sendDM(message['sender_id'], donate_text, message['system'])
-            logging.info("{}: {} NANO donation processed.  Hash: {}".format(str(datetime.now()), Decimal(send_amount), send_hash))
+            logging.info("{}: {} BANANO donation processed.  Hash: {}".format(str(datetime.now()), Decimal(send_amount), send_hash))
 
     else:
         incorrect_donate_text = "Incorrect syntax.  Please use the format !donate 1234"
@@ -628,7 +628,7 @@ def validateTipAmount(message):
         return
 
     try:
-        message['tip_amount_raw'] = convert(message['tip_amount'], from_unit='XRB', to_unit='raw')
+        message['tip_amount_raw'] = convert(message['tip_amount'], from_unit='BAN', to_unit='raw')
     except Exception as e:
         logging.info("{}: Exception converting tip_amount to tip_amount_raw".format(datetime.now(TIMEZONE)))
         logging.info("{}: {}".format(datetime.now(TIMEZONE), e))
@@ -718,7 +718,7 @@ def setTipList(message, users_to_tip):
 
 def validateSender(message):
     """
-    Validate that the sender has an account with the tip bot, and has enough NANO to cover the tip.
+    Validate that the sender has an account with the tip bot, and has enough BANANO to cover the tip.
     """
     logging.info("{}: validating sender".format(datetime.now()))
     logging.info("sender id: {}".format(message['sender_id']))
@@ -748,11 +748,11 @@ def validateSender(message):
 
 def validateTotalTipAmount(message):
     """
-    Validate that the sender has enough Nano to cover the tip to all users
+    Validate that the sender has enough Banano to cover the tip to all users
     """
     logging.info("{}: validating total tip amount".format(datetime.now()))
     if message['sender_balance_raw']['balance'] < (message['total_tip_amount'] * 1000000000000000000000000000000):
-        not_enough_text = ("You do not have enough NANO to cover this {} NANO tip.  Please check your balance by "
+        not_enough_text = ("You do not have enough Banano to cover this {} BANANO tip.  Please check your balance by "
                            "sending a DM to me with !balance and retry.".format(message['total_tip_amount']))
         sendReply(message, not_enough_text)
 
@@ -800,7 +800,7 @@ def sendTip(message, users_to_tip, tip_index):
     """
     logging.info("{}: sending tip to {}".format(datetime.now(), users_to_tip[tip_index]['receiver_screen_name']))
     if str(users_to_tip[tip_index]['receiver_id']) == str(message['sender_id']):
-        self_tip_text = "Self tipping is not allowed.  Please use this bot to spread the $NANO to other Twitter users!"
+        self_tip_text = "Self tipping is not allowed.  Please use this bot to spread the $BANANO to other Twitter users!"
         sendReply(message, self_tip_text)
 
         logging.info("{}: User tried to tip themself").format(datetime.now())
@@ -854,9 +854,9 @@ def sendTip(message, users_to_tip, tip_index):
             users_to_tip[tip_index]['balance'] = str(users_to_tip[tip_index]['balance'])
 
         # Send a DM to the receiver
-        receiver_tip_text = ("@{} just sent you a {} NANO tip! Your new balance is {} NANO.  If you have not registered an account,"
+        receiver_tip_text = ("@{} just sent you a {} BANANO tip! Your new balance is {} BANANO.  If you have not registered an account,"
                              " send a reply with !register to get started, or !help to see a list of "
-                             "commands!  Learn more about NANO at https://nano.org/".format(
+                             "commands!  Learn more about BANANO at https://banano.co/".format(
                               message['sender_screen_name'], message['tip_amount_text'], users_to_tip[tip_index]['balance']))
         sendDM(users_to_tip[tip_index]['receiver_id'], receiver_tip_text, message['system'])
     except Exception as e:
@@ -892,13 +892,13 @@ def tipProcess(message, users_to_tip):
 
     # Inform the user that all tips were sent.
     if len(users_to_tip) >= 2:
-        multi_tip_success = ("You have successfully sent your {} $NANO tips.  Check your account at nanode.co/account/{}"
+        multi_tip_success = ("You have successfully sent your {} $BANANO tips.  Check your account at creeper.banano.cc/explorer/account/{}"
                              .format(message['tip_amount_text'], message['sender_account']))
         sendReply(message, multi_tip_success)
 
 
     elif len(users_to_tip) == 1:
-        tip_success = ("You have successfully sent your {} $NANO tip.  Check your account at nanode.co/account/{}"
+        tip_success = ("You have successfully sent your {} $BANANO tip.  Check your account at creeper.banano.cc/explorer/account/{}"
                        .format(message['tip_amount_text'], message['sender_account']))
         sendReply(message, tip_success)
 
@@ -975,7 +975,7 @@ def parseAction(message):
         new_pid = os.fork()
         if new_pid == 0:
             try:
-                redirect_tip_text = "Tips are processed through public messages now.  Please send in the format @NanoTipBot !tip .0001 @user1."
+                redirect_tip_text = "Tips are processed through public messages now.  Please send in the format @BananoTipBot !tip .0001 @user1."
                 sendDM(message['sender_id'], redirect_tip_text, message['system'])
             except Exception as e:
                 logging.info("Exception: {}".format(e))
@@ -1183,11 +1183,11 @@ def tip_list():
 @app.route('/')
 @app.route('/index.html')
 def index():
-    r = requests.get('https://api.coinmarketcap.com/v2/ticker/1567/')
+    r = requests.get('https://api.coinmarketcap.com/v2/ticker/1567/https://api.coingecko.com/api/v3/coins/banano?tickers=false&market_data=true/')
     rx = r.json()
-    price = round(rx['data']['quotes']['USD']['price'], 2)
+    price = round(rx['id']['current_price']['usd']['price'], 2)
 
-    total_tipped_nano = ("SELECT system, sum(amount) as total "
+    total_tipped_banano = ("SELECT system, sum(amount) as total "
                          "FROM tip_bot.tip_list "
                          "WHERE receiver_id IN (SELECT user_id FROM tip_bot.users) "
                          "GROUP BY system "
@@ -1199,14 +1199,14 @@ def index():
                            "GROUP BY system "
                            "ORDER BY notips desc")
 
-    total_tipped_nano_table = getDBData(total_tipped_nano)
+    total_tipped_banano_table = getDBData(total_tipped_banano)
     total_tipped_number_table = getDBData(total_tipped_number)
     total_value_usd = round(total_tipped_number_table[0][1] * price,2)
 
     logging.info("total_value_usd: {}".format(total_value_usd))
-    logging.info("total_tipped_nano_table = {}".format(total_tipped_nano_table))
+    logging.info("total_tipped_banano_table = {}".format(total_tipped_banano_table))
     logging.info("total_tipped_number_table = {}".format(total_tipped_number_table))
-    return render_template('index.html', total_tipped_nano_table=total_tipped_nano_table, total_tipped_number_table=total_tipped_number_table, total_value_usd=total_value_usd, price=price)
+    return render_template('index.html', total_tipped_banano_table=total_tipped_banano_table, total_tipped_number_table=total_tipped_number_table, total_value_usd=total_value_usd, price=price)
 
 
 @app.route('/webhooks/twitter', methods=["GET"])
@@ -1263,10 +1263,10 @@ def telegram_event():
         # text:                   A list containing the text of the received tweet, split by ' '
         # sender_id:              Twitter ID of the user sending the tip
         # sender_screen_name:     Twitter Handle of the user sending the tip
-        # sender_account:         Nano account of sender - Error logged through None value
+        # sender_account:         Banano account of sender - Error logged through None value
         # sender_register:        Registration status with Tip Bot of sender account
-        # sender_balance_raw:     Amount of Nano in sender's account, stored in raw
-        # sender_balance:         Amount of Nano in sender's account, stored in Nano
+        # sender_balance_raw:     Amount of Banano in sender's account, stored in raw
+        # sender_balance:         Amount of Banano in sender's account, stored in Banano
 
         # action_index:           Location of key action value *(currently !tip only)
         # action:                 Action found in the received tweet - Error logged through None value
@@ -1287,7 +1287,7 @@ def telegram_event():
         # the below parameters
         #    receiver_id:            Twitter ID of the user receiving a tip
         #    receiver_screen_name:   Twitter Handle of the user receiving a tip
-        #    receiver_account:       Nano account of receiver
+        #    receiver_account:       Banano account of receiver
         #    receiver_register:      Registration status with Tip Bot of reciever account
     ]
 
@@ -1328,7 +1328,7 @@ def telegram_event():
 
                 checkMessageAction(message)
                 if message['action'] is None:
-                    logging.info("{}: Mention of nano tip bot without a !tip command.".format(datetime.now(TIMEZONE)))
+                    logging.info("{}: Mention of banano tip bot without a !tip command.".format(datetime.now(TIMEZONE)))
                     return '', HTTPStatus.OK
 
                 validateTipAmount(message)
@@ -1437,7 +1437,7 @@ def facebook_event():
 
             checkMessageAction(message)
             if message['action'] is None:
-                logging.info("{}: Mention of nano tip bot without a !tip command.".format(datetime.now(TIMEZONE)))
+                logging.info("{}: Mention of banano tip bot without a !tip command.".format(datetime.now(TIMEZONE)))
                 return '', HTTPStatus.OK
 
             validateTipAmount(message)
@@ -1517,7 +1517,7 @@ def twitterEventReceived():
 
         checkMessageAction(message)
         if message['action'] is None:
-            logging.info("{}: Mention of nano tip bot without a !tip command.".format(datetime.now(TIMEZONE)))
+            logging.info("{}: Mention of banano tip bot without a !tip command.".format(datetime.now(TIMEZONE)))
             return '', HTTPStatus.OK
 
         validateTipAmount(message)
